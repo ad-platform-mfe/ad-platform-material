@@ -1,7 +1,20 @@
 import type { FC } from 'react'
 import { useState } from 'react'
 import type { RadioChangeEvent } from 'antd'
-import { Button, Input, Radio, Space, List, Modal, Upload, Empty } from 'antd'
+import {
+  Button,
+  Input,
+  Radio,
+  Space,
+  List,
+  Modal,
+  Upload,
+  Empty,
+  Segmented,
+  Table,
+  Image as AntImage,
+  Tag
+} from 'antd'
 import type { RcFile, UploadProps } from 'antd/es/upload'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { PlusOutlined } from '@ant-design/icons'
@@ -20,6 +33,7 @@ interface Material {
   name: string
   url: string
   cover?: string
+  createdAt?: string
 }
 
 const mockData: Material[] = [
@@ -27,13 +41,15 @@ const mockData: Material[] = [
     id: 1,
     type: 'image',
     name: '风景图片',
-    url: adImgDemo
+    url: adImgDemo,
+    createdAt: '2023-10-01 10:00:00'
   },
   {
     id: 2,
     type: 'image',
     name: '品牌广告',
-    url: adImgDemo2
+    url: adImgDemo2,
+    createdAt: '2023-10-02 11:30:00'
   },
   {
     id: 3,
@@ -41,7 +57,8 @@ const mockData: Material[] = [
     name: '广告视频',
     url: adVideoDemo2,
     cover:
-      'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
+      'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png',
+    createdAt: '2023-10-03 15:00:00'
   }
 ]
 
@@ -54,6 +71,59 @@ const Material: FC = () => {
   const [previewingMaterial, setPreviewingMaterial] = useState<Material | null>(
     null
   )
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+
+  const columns = [
+    {
+      title: '缩略图',
+      dataIndex: 'url',
+      key: 'url',
+      render: (url: string, record: Material) => (
+        <AntImage
+          width={80}
+          height={45}
+          src={record.type === 'image' ? url : record.cover}
+          alt={record.name}
+          style={{ objectFit: 'cover', borderRadius: '4px' }}
+        />
+      )
+    },
+    {
+      title: '素材名称',
+      dataIndex: 'name',
+      key: 'name'
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: 'image' | 'video') => (
+        <Tag color={type === 'image' ? 'green' : 'blue'}>
+          {type === 'image' ? '图片' : '视频'}
+        </Tag>
+      )
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt'
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: unknown, record: Material) => (
+        <Space size="middle">
+          <Button type="link" onClick={() => handleCardPreview(record)}>
+            预览
+          </Button>
+          <Button type="link">编辑</Button>
+          <Button type="link" danger onClick={() => handleDelete(record.id)}>
+            删除
+          </Button>
+        </Space>
+      )
+    }
+  ]
 
   const handleFilterChange = (e: RadioChangeEvent) => {
     const newFilter = e.target.value
@@ -152,6 +222,36 @@ const Material: FC = () => {
     </button>
   )
 
+  const renderContent = () => {
+    if (viewMode === 'card') {
+      return (
+        <List
+          grid={{ gutter: 16, column: 4 }}
+          dataSource={materials}
+          renderItem={(item) => (
+            <List.Item>
+              <MaterialCard
+                item={item}
+                onDelete={handleDelete}
+                onPreview={handleCardPreview}
+              />
+            </List.Item>
+          )}
+          locale={{
+            emptyText: (
+              <Empty description="暂无素材">
+                <Button type="primary" onClick={showModal}>
+                  立即上传
+                </Button>
+              </Empty>
+            )
+          }}
+        />
+      )
+    }
+    return <Table columns={columns} dataSource={materials} rowKey="id" />
+  }
+
   return (
     <div>
       <div className={styles.actions}>
@@ -165,34 +265,23 @@ const Material: FC = () => {
             <Radio.Button value="video">视频</Radio.Button>
           </Radio.Group>
         </Space>
-        <Search
-          placeholder="请输入素材名称"
-          onSearch={handleSearch}
-          style={{ width: 240 }}
-        />
+        <Space>
+          <Search
+            placeholder="请输入素材名称"
+            onSearch={handleSearch}
+            style={{ width: 240 }}
+          />
+          <Segmented
+            options={[
+              { label: '卡片', value: 'card' },
+              { label: '表格', value: 'table' }
+            ]}
+            value={viewMode}
+            onChange={(value) => setViewMode(value as 'card' | 'table')}
+          />
+        </Space>
       </div>
-      <List
-        grid={{ gutter: 16, column: 4 }}
-        dataSource={materials}
-        renderItem={(item) => (
-          <List.Item>
-            <MaterialCard
-              item={item}
-              onDelete={handleDelete}
-              onPreview={handleCardPreview}
-            />
-          </List.Item>
-        )}
-        locale={{
-          emptyText: (
-            <Empty description="暂无素材">
-              <Button type="primary" onClick={showModal}>
-                立即上传
-              </Button>
-            </Empty>
-          )
-        }}
-      />
+      {renderContent()}
       <Modal
         title="上传素材"
         open={isModalOpen}

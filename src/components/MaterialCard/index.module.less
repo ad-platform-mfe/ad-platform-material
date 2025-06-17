@@ -1,18 +1,28 @@
 .video-cover {
   position: relative;
   cursor: pointer;
-}
+  background-color: #000;
 
-.video-cover .ant-image {
-  width: 100%;
-}
+  .ant-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 
-.video-play-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 48px;
-  color: white;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  .video-play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    color: white;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s;
+  }
+
+  &:hover {
+    .video-play-icon {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+  }
 }
