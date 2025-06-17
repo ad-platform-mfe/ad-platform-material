@@ -13,5 +13,12 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src')
     }
+  },
+  server: {
+    port: 5176,
+    cors: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*'
+    }
   }
 })

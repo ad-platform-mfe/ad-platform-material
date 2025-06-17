@@ -6,7 +6,11 @@ import type { RcFile, UploadProps } from 'antd/es/upload'
 import type { UploadFile } from 'antd/es/upload/interface'
 import { PlusOutlined } from '@ant-design/icons'
 import MaterialCard from '@/components/MaterialCard'
-import styles from './index.module.css'
+import styles from './index.module.less'
+
+import adImgDemo from '@/assets/images/ad-img-demo.jpg'
+import adImgDemo2 from '@/assets/images/ad-img-demo2.jpg'
+import adVideoDemo2 from '@/assets/video/ad-demo2.mp4'
 
 const { Search } = Input
 
@@ -23,19 +27,19 @@ const mockData: Material[] = [
     id: 1,
     type: 'image',
     name: '风景图片',
-    url: 'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
+    url: adImgDemo
   },
   {
     id: 2,
     type: 'image',
-    name: '美女图片',
-    url: 'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
+    name: '品牌广告',
+    url: adImgDemo2
   },
   {
     id: 3,
     type: 'video',
     name: '广告视频',
-    url: 'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png',
+    url: adVideoDemo2,
     cover:
       'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
   }
@@ -46,9 +50,6 @@ const Material: FC = () => {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewImage, setPreviewImage] = useState('')
-  const [previewTitle, setPreviewTitle] = useState('')
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [previewingMaterial, setPreviewingMaterial] = useState<Material | null>(
     null
@@ -84,15 +85,26 @@ const Material: FC = () => {
   }
 
   const handlePreview = async (file: UploadFile) => {
-    if (!file.url && !file.preview) {
-      file.preview = await getBase64(file.originFileObj as RcFile)
+    let previewUrl = file.url
+
+    if (!previewUrl && file.originFileObj) {
+      try {
+        previewUrl = await getBase64(file.originFileObj as RcFile)
+      } catch (e) {
+        console.error('Failed to get base64 for preview:', e)
+        previewUrl = '' // or some fallback
+      }
     }
 
-    setPreviewImage(file.url || (file.preview as string))
-    setPreviewOpen(true)
-    setPreviewTitle(
-      file.name || file.url!.substring(file.url!.lastIndexOf('/') + 1)
-    )
+    setPreviewingMaterial({
+      id: new Date().getTime(), // temporary id
+      name:
+        file.name ||
+        previewUrl?.substring(previewUrl.lastIndexOf('/') + 1) ||
+        '预览',
+      url: previewUrl || '',
+      type: file.type?.startsWith('video/') ? 'video' : 'image'
+    })
   }
 
   const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) =>
@@ -107,10 +119,7 @@ const Material: FC = () => {
       id: Date.now() + index,
       name: file.name,
       url: file.url || (file.preview as string),
-      type: file.type?.startsWith('image/') ? 'image' : 'video',
-      cover: file.type?.startsWith('video/')
-        ? 'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png'
-        : undefined
+      type: file.type?.startsWith('image/') ? 'image' : 'video'
     }))
 
     setMaterials((prev) => [...newMaterials, ...prev])
@@ -122,7 +131,7 @@ const Material: FC = () => {
     setIsModalOpen(false)
   }
 
-  const handlePreviewCancel = () => setPreviewOpen(false)
+  const handlePreviewCancel = () => setPreviewingMaterial(null)
 
   const handleDelete = (id: number) => {
     Modal.confirm({
@@ -199,25 +208,18 @@ const Material: FC = () => {
         >
           {fileList.length >= 8 ? null : uploadButton}
         </Upload>
-        <Modal
-          open={previewOpen}
-          title={previewTitle}
-          footer={null}
-          onCancel={handlePreviewCancel}
-        >
-          <img alt="example" style={{ width: '100%' }} src={previewImage} />
-        </Modal>
       </Modal>
       {previewingMaterial && (
         <Modal
           open={!!previewingMaterial}
           title={previewingMaterial.name}
           footer={null}
-          onCancel={() => setPreviewingMaterial(null)}
+          onCancel={handlePreviewCancel}
           destroyOnClose
         >
           {previewingMaterial.type === 'image' && (
             <img
+              key={previewingMaterial.url}
               alt={previewingMaterial.name}
               style={{ width: '100%' }}
               src={previewingMaterial.url}
@@ -225,8 +227,10 @@ const Material: FC = () => {
           )}
           {previewingMaterial.type === 'video' && (
             <video
+              key={previewingMaterial.url}
               controls
               autoPlay
+              muted
               style={{ width: '100%' }}
               src={previewingMaterial.url}
             />

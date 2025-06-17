@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { Card, Image } from 'antd'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
-import styles from './index.module.css'
+import styles from './index.module.less'
 
 const { Meta } = Card
 
@@ -26,8 +26,11 @@ const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
         item.type === 'image' ? (
           <Image alt={item.name} src={item.url} />
         ) : (
-          <div className={styles['video-cover']}>
-            <Image alt={item.name} src={item.cover} />
+          <div
+            className={styles['video-cover']}
+            onClick={() => onPreview(item)}
+          >
+            <Image alt={item.name} src={item.cover} preview={false} />
             <div className={styles['video-play-icon']}>▶</div>
           </div>
         )
