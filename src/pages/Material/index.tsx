@@ -6,7 +6,6 @@ import {
   Input,
   Radio,
   Space,
-  List,
   Modal,
   Upload,
   Empty,
@@ -20,10 +19,16 @@ import type { UploadFile } from 'antd/es/upload/interface'
 import { PlusOutlined } from '@ant-design/icons'
 import MaterialCard from '@/components/MaterialCard'
 import styles from './index.module.less'
+import Masonry from 'react-masonry-css'
 
 import adImgDemo from '@/assets/images/ad-img-demo.jpg'
 import adImgDemo2 from '@/assets/images/ad-img-demo2.jpg'
 import adVideoDemo2 from '@/assets/video/ad-demo2.mp4'
+import adImgDemo3 from '@/assets/images/ad-img-demo3.jpg'
+import adImgDemo4 from '@/assets/images/ad-img-demo4.jpg'
+import adVideoDemo3 from '@/assets/video/ad-video-demo3.mp4'
+import adVideoDemo4 from '@/assets/video/ad-video-demo4.mp4'
+import adPosterDemo from '@/assets/images/ad-vedio-poster1.png'
 
 const { Search } = Input
 
@@ -56,8 +61,39 @@ const mockData: Material[] = [
     type: 'video',
     name: '广告视频',
     url: adVideoDemo2,
-    cover:
-      'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png',
+    cover: adPosterDemo,
+    createdAt: '2023-10-03 15:00:00'
+  },
+
+  {
+    id: 4,
+    type: 'image',
+    name: '品牌广告',
+    url: adImgDemo3,
+    createdAt: '2023-10-02 11:30:00'
+  },
+
+  {
+    id: 5,
+    type: 'image',
+    name: '品牌广告',
+    url: adImgDemo4,
+    createdAt: '2023-10-02 11:30:00'
+  },
+  {
+    id: 6,
+    type: 'video',
+    name: '广告视频',
+    url: adVideoDemo3,
+    cover: adPosterDemo,
+    createdAt: '2023-10-03 15:00:00'
+  },
+  {
+    id: 7,
+    type: 'video',
+    name: '广告视频',
+    url: adVideoDemo4,
+    cover: adPosterDemo,
     createdAt: '2023-10-03 15:00:00'
   }
 ]
@@ -72,6 +108,13 @@ const Material: FC = () => {
     null
   )
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+
+  const breakpointColumnsObj = {
+    default: 4,
+    1100: 3,
+    700: 2,
+    500: 1
+  }
 
   const columns = [
     {
@@ -224,29 +267,30 @@ const Material: FC = () => {
 
   const renderContent = () => {
     if (viewMode === 'card') {
+      if (materials.length === 0) {
+        return (
+          <Empty description="暂无素材">
+            <Button type="primary" onClick={showModal}>
+              立即上传
+            </Button>
+          </Empty>
+        )
+      }
       return (
-        <List
-          grid={{ gutter: 16, column: 4 }}
-          dataSource={materials}
-          renderItem={(item) => (
-            <List.Item>
-              <MaterialCard
-                item={item}
-                onDelete={handleDelete}
-                onPreview={handleCardPreview}
-              />
-            </List.Item>
-          )}
-          locale={{
-            emptyText: (
-              <Empty description="暂无素材">
-                <Button type="primary" onClick={showModal}>
-                  立即上传
-                </Button>
-              </Empty>
-            )
-          }}
-        />
+        <Masonry
+          breakpointCols={breakpointColumnsObj}
+          className={styles['my-masonry-grid']}
+          columnClassName={styles['my-masonry-grid_column']}
+        >
+          {materials.map((item) => (
+            <MaterialCard
+              key={item.id}
+              item={item}
+              onDelete={handleDelete}
+              onPreview={handleCardPreview}
+            />
+          ))}
+        </Masonry>
       )
     }
     return <Table columns={columns} dataSource={materials} rowKey="id" />
