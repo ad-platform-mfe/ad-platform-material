@@ -1,0 +1,18 @@
+.video-cover {
+  position: relative;
+  cursor: pointer;
+}
+
+.video-cover .ant-image {
+  width: 100%;
+}
+
+.video-play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 48px;
+  color: white;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
