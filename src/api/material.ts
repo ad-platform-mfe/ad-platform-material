@@ -35,6 +35,10 @@ export const addMaterial = (data: AddMaterialPayload) => {
   return service.post<{ data: Material }>('/materials', data)
 }
 
+export const updateMaterial = (id: number, data: { title: string }) => {
+  return service.put(`/materials/${id}`, data)
+}
+
 export const deleteMaterial = (id: number) => {
   return service.delete(`/materials/${id}`)
 }

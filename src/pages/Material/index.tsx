@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { RadioChangeEvent } from 'antd'
 import {
   Button,
@@ -11,7 +11,9 @@ import {
   Segmented,
   Table,
   Image as AntImage,
-  Tag
+  Tag,
+  Form,
+  Input as AntdInput
 } from 'antd'
 import type { RcFile, UploadProps } from 'antd/es/upload'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -23,10 +25,15 @@ import {
   getMaterials,
   addMaterial,
   deleteMaterial,
+  updateMaterial,
   type Material as MaterialType
 } from '@/api/material'
 
 const { Search } = Input
+
+interface CustomUploadFile extends UploadFile {
+  title: string
+}
 
 const getBase64 = (file: RcFile): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -41,7 +48,11 @@ function Material() {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingMaterial, setEditingMaterial] = useState<MaterialType | null>(
+    null
+  )
+  const [fileList, setFileList] = useState<CustomUploadFile[]>([])
   const [previewingMaterial, setPreviewingMaterial] = useState<
     | (Omit<MaterialType, 'id' | 'createdAt' | 'updatedAt'> & {
         id?: number
@@ -50,6 +61,7 @@ function Material() {
   >(null)
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
   const [videoModalWidth, setVideoModalWidth] = useState<number | undefined>()
+  const [editForm] = Form.useForm()
 
   const fetchMaterials = async () => {
     try {
@@ -131,7 +143,9 @@ function Material() {
           <Button type="link" onClick={() => handleCardPreview(record)}>
             预览
           </Button>
-          <Button type="link">编辑</Button>
+          <Button type="link" onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
           <Button type="link" danger onClick={() => handleDelete(record.id)}>
             删除
           </Button>
@@ -149,14 +163,25 @@ function Material() {
   }
 
   const filteredMaterials = materials
-    .filter((item) => {
+    .filter((item: MaterialType) => {
       if (filter === 'all') return true
       return item.type === filter
     })
-    .filter((item) => {
+    .filter((item: MaterialType) => {
       if (!search) return true
       return item.title.toLowerCase().includes(search.toLowerCase())
     })
+
+  const handleTitleChange = (newTitle: string, uid: string) => {
+    setFileList((currentFileList: CustomUploadFile[]) =>
+      currentFileList.map((file: CustomUploadFile) => {
+        if (file.uid === uid) {
+          return { ...file, title: newTitle }
+        }
+        return file
+      })
+    )
+  }
 
   const handleVideoLoad = (
     e: React.SyntheticEvent<HTMLVideoElement, Event>
@@ -209,24 +234,34 @@ function Material() {
     })
   }
 
-  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) =>
-    setFileList(newFileList)
+  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
+    const nextFileList = newFileList.map((file: UploadFile) => {
+      const currentFile = fileList.find(
+        (item: CustomUploadFile) => item.uid === file.uid
+      )
+      return {
+        ...file,
+        title: currentFile?.title || file.name
+      }
+    })
+    setFileList(nextFileList as CustomUploadFile[])
+  }
 
   const showModal = () => {
     setIsModalOpen(true)
   }
 
   const handleOk = async () => {
-    const uploadPromises = fileList.map(async (file) => {
+    const uploadPromises = fileList.map(async (file: CustomUploadFile) => {
       if (!file.originFileObj) return
 
       const base64 = await getBase64(file.originFileObj as RcFile)
       const payload = {
-        title: file.name,
+        title: file.title,
         data: base64,
-        type: (file.type?.startsWith('image/') ? 'image' : 'video') as
-          | 'image'
-          | 'video'
+        type: (file.originFileObj.type.startsWith('image/')
+          ? 'image'
+          : 'video') as 'image' | 'video'
       }
       return addMaterial(payload)
     })
@@ -244,6 +279,31 @@ function Material() {
 
   const handleCancel = () => {
     setIsModalOpen(false)
+  }
+
+  const handleEdit = (record: MaterialType) => {
+    setEditingMaterial(record)
+    editForm.setFieldsValue({ title: record.title })
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdate = async () => {
+    try {
+      const values = await editForm.validateFields()
+      if (editingMaterial) {
+        await updateMaterial(editingMaterial.id, { title: values.title })
+        setIsEditModalOpen(false)
+        setEditingMaterial(null)
+        fetchMaterials()
+      }
+    } catch (error) {
+      console.error('Failed to update material:', error)
+    }
+  }
+
+  const handleEditCancel = () => {
+    setIsEditModalOpen(false)
+    setEditingMaterial(null)
   }
 
   const handlePreviewCancel = () => {
@@ -292,12 +352,13 @@ function Material() {
           className={styles['my-masonry-grid']}
           columnClassName={styles['my-masonry-grid_column']}
         >
-          {filteredMaterials.map((item) => (
+          {filteredMaterials.map((item: MaterialType) => (
             <MaterialCard
               key={item.id}
               item={item}
-              onDelete={() => handleDelete(item.id)}
+              onDelete={handleDelete}
               onPreview={handleCardPreview}
+              onEdit={handleEdit}
             />
           ))}
         </Masonry>
@@ -333,7 +394,9 @@ function Material() {
               { label: '表格', value: 'table' }
             ]}
             value={viewMode}
-            onChange={(value) => setViewMode(value as 'card' | 'table')}
+            onChange={(value: string | number | boolean) =>
+              setViewMode(value as 'card' | 'table')
+            }
           />
         </Space>
       </div>
@@ -354,7 +417,58 @@ function Material() {
         >
           {fileList.length >= 8 ? null : uploadButton}
         </Upload>
+        <div
+          style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '20px' }}
+        >
+          {fileList.map((file: CustomUploadFile) => (
+            <div
+              key={file.uid}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: 12
+              }}
+            >
+              <span
+                style={{
+                  flex: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  marginRight: 12
+                }}
+              >
+                {file.name}
+              </span>
+              <Input
+                value={file.title}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleTitleChange(e.target.value, file.uid)
+                }
+                placeholder="请输入素材标题"
+              />
+            </div>
+          ))}
+        </div>
       </Modal>
+
+      <Modal
+        title="编辑素材"
+        open={isEditModalOpen}
+        onOk={handleUpdate}
+        onCancel={handleEditCancel}
+      >
+        <Form form={editForm} layout="vertical" name="form_in_modal">
+          <Form.Item
+            name="title"
+            label="素材标题"
+            rules={[{ required: true, message: '请输入素材标题!' }]}
+          >
+            <AntdInput />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       {previewingMaterial && (
         <Modal
           open={!!previewingMaterial}

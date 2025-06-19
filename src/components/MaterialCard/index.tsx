@@ -10,9 +10,12 @@ interface MaterialCardProps {
   item: MaterialType
   onDelete: (id: number) => void
   onPreview: (item: MaterialType) => void
+  onEdit: (item: MaterialType) => void
 }
 
-const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
+const MaterialCard: FC<MaterialCardProps> = (props) => {
+  const { item, onDelete, onPreview, onEdit } = props
+
   return (
     <Card
       cover={
@@ -32,7 +35,7 @@ const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
       }
       actions={[
         <EyeOutlined key="preview" onClick={() => onPreview(item)} />,
-        <EditOutlined key="edit" />,
+        <EditOutlined key="edit" onClick={() => onEdit(item)} />,
         <DeleteOutlined key="delete" onClick={() => onDelete(item.id)} />
       ]}
     >
