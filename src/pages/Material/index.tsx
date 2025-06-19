@@ -1,5 +1,4 @@
-import type { FC } from 'react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { RadioChangeEvent } from 'antd'
 import {
   Button,
@@ -20,94 +19,52 @@ import { PlusOutlined } from '@ant-design/icons'
 import MaterialCard from '@/components/MaterialCard'
 import styles from './index.module.less'
 import Masonry from 'react-masonry-css'
-
-import adImgDemo from '@/assets/images/ad-img-demo.jpg'
-import adImgDemo2 from '@/assets/images/ad-img-demo2.jpg'
-import adVideoDemo2 from '@/assets/video/ad-demo2.mp4'
-import adImgDemo3 from '@/assets/images/ad-img-demo3.jpg'
-import adImgDemo4 from '@/assets/images/ad-img-demo4.jpg'
-import adVideoDemo3 from '@/assets/video/ad-video-demo3.mp4'
-import adVideoDemo4 from '@/assets/video/ad-video-demo4.mp4'
-import adPosterDemo from '@/assets/images/ad-vedio-poster1.png'
+import {
+  getMaterials,
+  addMaterial,
+  deleteMaterial,
+  type Material as MaterialType
+} from '@/api/material'
 
 const { Search } = Input
 
-interface Material {
-  id: number
-  type: 'image' | 'video'
-  name: string
-  url: string
-  cover?: string
-  createdAt?: string
-}
+const getBase64 = (file: RcFile): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = (error) => reject(error)
+  })
 
-const mockData: Material[] = [
-  {
-    id: 1,
-    type: 'image',
-    name: '风景图片',
-    url: adImgDemo,
-    createdAt: '2023-10-01 10:00:00'
-  },
-  {
-    id: 2,
-    type: 'image',
-    name: '品牌广告',
-    url: adImgDemo2,
-    createdAt: '2023-10-02 11:30:00'
-  },
-  {
-    id: 3,
-    type: 'video',
-    name: '广告视频',
-    url: adVideoDemo2,
-    cover: adPosterDemo,
-    createdAt: '2023-10-03 15:00:00'
-  },
-
-  {
-    id: 4,
-    type: 'image',
-    name: '品牌广告',
-    url: adImgDemo3,
-    createdAt: '2023-10-02 11:30:00'
-  },
-
-  {
-    id: 5,
-    type: 'image',
-    name: '品牌广告',
-    url: adImgDemo4,
-    createdAt: '2023-10-02 11:30:00'
-  },
-  {
-    id: 6,
-    type: 'video',
-    name: '广告视频',
-    url: adVideoDemo3,
-    cover: adPosterDemo,
-    createdAt: '2023-10-03 15:00:00'
-  },
-  {
-    id: 7,
-    type: 'video',
-    name: '广告视频',
-    url: adVideoDemo4,
-    cover: adPosterDemo,
-    createdAt: '2023-10-03 15:00:00'
-  }
-]
-
-const Material: FC = () => {
-  const [materials, setMaterials] = useState(mockData)
+function Material() {
+  const [materials, setMaterials] = useState<MaterialType[]>([])
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [previewingMaterial, setPreviewingMaterial] = useState<Material | null>(
-    null
-  )
+  const [previewingMaterial, setPreviewingMaterial] = useState<
+    | (Omit<MaterialType, 'id' | 'createdAt' | 'updatedAt'> & {
+        id?: number
+      })
+    | null
+  >(null)
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  const [videoModalWidth, setVideoModalWidth] = useState<number | undefined>()
+
+  const fetchMaterials = async () => {
+    try {
+      const res = await getMaterials({})
+      if (res.data && res.data.list) {
+        setMaterials(res.data.list)
+      }
+    } catch (error) {
+      console.error('Failed to fetch materials:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchMaterials()
+  }, [])
 
   const breakpointColumnsObj = {
     default: 4,
@@ -119,21 +76,36 @@ const Material: FC = () => {
   const columns = [
     {
       title: '缩略图',
-      dataIndex: 'url',
+      dataIndex: 'data',
       key: 'url',
-      render: (url: string, record: Material) => (
-        <AntImage
-          width={80}
-          height={45}
-          src={record.type === 'image' ? url : record.cover}
-          alt={record.name}
-          style={{ objectFit: 'cover', borderRadius: '4px' }}
-        />
-      )
+      render: (data: string, record: MaterialType) =>
+        record.type === 'image' ? (
+          <AntImage
+            width={80}
+            height={45}
+            src={data}
+            alt={record.title}
+            style={{ objectFit: 'cover', borderRadius: '4px' }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 80,
+              height: 45,
+              background: '#e8e8e8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px'
+            }}
+          >
+            视频
+          </div>
+        )
     },
     {
       title: '素材名称',
-      dataIndex: 'name',
+      dataIndex: 'title',
       key: 'name'
     },
     {
@@ -154,7 +126,7 @@ const Material: FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: Material) => (
+      render: (_: unknown, record: MaterialType) => (
         <Space size="middle">
           <Button type="link" onClick={() => handleCardPreview(record)}>
             预览
@@ -169,31 +141,49 @@ const Material: FC = () => {
   ]
 
   const handleFilterChange = (e: RadioChangeEvent) => {
-    const newFilter = e.target.value
-    setFilter(newFilter)
-    filterMaterials(newFilter, search)
+    setFilter(e.target.value)
   }
 
   const handleSearch = (value: string) => {
     setSearch(value)
-    filterMaterials(filter, value)
   }
 
-  const filterMaterials = (type: string, keyword: string) => {
-    let filteredData = mockData
+  const filteredMaterials = materials
+    .filter((item) => {
+      if (filter === 'all') return true
+      return item.type === filter
+    })
+    .filter((item) => {
+      if (!search) return true
+      return item.title.toLowerCase().includes(search.toLowerCase())
+    })
 
-    if (type !== 'all') {
-      filteredData = filteredData.filter((item) => item.type === type)
+  const handleVideoLoad = (
+    e: React.SyntheticEvent<HTMLVideoElement, Event>
+  ) => {
+    const video = e.currentTarget
+    const { videoWidth, videoHeight } = video
+
+    // 仅为竖屏视频计算动态宽度
+    if (videoHeight > videoWidth) {
+      const maxHeight = window.innerHeight * 0.8
+      const maxWidth = window.innerWidth * 0.8
+
+      let modalWidth = videoWidth
+
+      if (videoHeight > maxHeight) {
+        modalWidth = (videoWidth / videoHeight) * maxHeight
+      }
+
+      if (modalWidth > maxWidth) {
+        modalWidth = maxWidth
+      }
+      setVideoModalWidth(modalWidth)
     }
-
-    if (keyword) {
-      filteredData = filteredData.filter((item) => item.name.includes(keyword))
-    }
-
-    setMaterials(filteredData)
   }
 
-  const handleCardPreview = (item: Material) => {
+  const handleCardPreview = (item: MaterialType) => {
+    setVideoModalWidth(undefined) // 每次打开时重置宽度
     setPreviewingMaterial(item)
   }
 
@@ -210,12 +200,11 @@ const Material: FC = () => {
     }
 
     setPreviewingMaterial({
-      id: new Date().getTime(), // temporary id
-      name:
+      title:
         file.name ||
         previewUrl?.substring(previewUrl.lastIndexOf('/') + 1) ||
         '预览',
-      url: previewUrl || '',
+      data: previewUrl || '',
       type: file.type?.startsWith('video/') ? 'video' : 'image'
     })
   }
@@ -227,33 +216,54 @@ const Material: FC = () => {
     setIsModalOpen(true)
   }
 
-  const handleOk = () => {
-    const newMaterials: Material[] = fileList.map((file, index) => ({
-      id: Date.now() + index,
-      name: file.name,
-      url: file.url || (file.preview as string),
-      type: file.type?.startsWith('image/') ? 'image' : 'video'
-    }))
+  const handleOk = async () => {
+    const uploadPromises = fileList.map(async (file) => {
+      if (!file.originFileObj) return
 
-    setMaterials((prev) => [...newMaterials, ...prev])
-    setFileList([])
-    setIsModalOpen(false)
+      const base64 = await getBase64(file.originFileObj as RcFile)
+      const payload = {
+        title: file.name,
+        data: base64,
+        type: (file.type?.startsWith('image/') ? 'image' : 'video') as
+          | 'image'
+          | 'video'
+      }
+      return addMaterial(payload)
+    })
+
+    try {
+      await Promise.all(uploadPromises)
+      setIsModalOpen(false)
+      setFileList([])
+      fetchMaterials() // Refresh list after upload
+    } catch (error) {
+      console.error('Failed to upload materials:', error)
+      // Optionally show an error message to the user
+    }
   }
 
   const handleCancel = () => {
     setIsModalOpen(false)
   }
 
-  const handlePreviewCancel = () => setPreviewingMaterial(null)
+  const handlePreviewCancel = () => {
+    setPreviewingMaterial(null)
+    setVideoModalWidth(undefined)
+  }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     Modal.confirm({
       title: '确认删除',
       content: '您确定要删除这个素材吗？',
       okText: '确认',
       cancelText: '取消',
-      onOk: () => {
-        setMaterials((prev) => prev.filter((item) => item.id !== id))
+      onOk: async () => {
+        try {
+          await deleteMaterial(id)
+          fetchMaterials() // Refresh list after delete
+        } catch (error) {
+          console.error('Failed to delete material:', error)
+        }
       }
     })
   }
@@ -267,7 +277,7 @@ const Material: FC = () => {
 
   const renderContent = () => {
     if (viewMode === 'card') {
-      if (materials.length === 0) {
+      if (filteredMaterials.length === 0) {
         return (
           <Empty description="暂无素材">
             <Button type="primary" onClick={showModal}>
@@ -282,18 +292,20 @@ const Material: FC = () => {
           className={styles['my-masonry-grid']}
           columnClassName={styles['my-masonry-grid_column']}
         >
-          {materials.map((item) => (
+          {filteredMaterials.map((item) => (
             <MaterialCard
               key={item.id}
               item={item}
-              onDelete={handleDelete}
+              onDelete={() => handleDelete(item.id)}
               onPreview={handleCardPreview}
             />
           ))}
         </Masonry>
       )
     }
-    return <Table columns={columns} dataSource={materials} rowKey="id" />
+    return (
+      <Table columns={columns} dataSource={filteredMaterials} rowKey="id" />
+    )
   }
 
   return (
@@ -333,7 +345,8 @@ const Material: FC = () => {
         onCancel={handleCancel}
       >
         <Upload
-          action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
+          accept="image/*,video/*"
+          beforeUpload={() => false} // Prevent auto upload
           listType="picture-card"
           fileList={fileList}
           onPreview={handlePreview}
@@ -345,27 +358,31 @@ const Material: FC = () => {
       {previewingMaterial && (
         <Modal
           open={!!previewingMaterial}
-          title={previewingMaterial.name}
+          title={previewingMaterial.title}
           footer={null}
           onCancel={handlePreviewCancel}
           destroyOnClose
+          width={
+            previewingMaterial.type === 'video' ? videoModalWidth : undefined
+          }
         >
           {previewingMaterial.type === 'image' && (
             <img
-              key={previewingMaterial.url}
-              alt={previewingMaterial.name}
+              key={previewingMaterial.data}
+              alt={previewingMaterial.title}
               style={{ width: '100%' }}
-              src={previewingMaterial.url}
+              src={previewingMaterial.data}
             />
           )}
           {previewingMaterial.type === 'video' && (
             <video
-              key={previewingMaterial.url}
+              key={previewingMaterial.data}
               controls
               autoPlay
               muted
               style={{ width: '100%' }}
-              src={previewingMaterial.url}
+              src={previewingMaterial.data}
+              onLoadedMetadata={handleVideoLoad}
             />
           )}
         </Modal>
@@ -373,13 +390,5 @@ const Material: FC = () => {
     </div>
   )
 }
-
-const getBase64 = (file: RcFile): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.readAsDataURL(file)
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = (error) => reject(error)
-  })
 
 export default Material

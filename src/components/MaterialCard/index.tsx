@@ -2,21 +2,14 @@ import type { FC } from 'react'
 import { Card, Image } from 'antd'
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
 import styles from './index.module.less'
+import { type Material as MaterialType } from '@/api/material'
 
 const { Meta } = Card
 
-interface Material {
-  id: number
-  type: 'image' | 'video'
-  name: string
-  url: string
-  cover?: string
-}
-
 interface MaterialCardProps {
-  item: Material
+  item: MaterialType
   onDelete: (id: number) => void
-  onPreview: (item: Material) => void
+  onPreview: (item: MaterialType) => void
 }
 
 const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
@@ -24,13 +17,15 @@ const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
     <Card
       cover={
         item.type === 'image' ? (
-          <Image alt={item.name} src={item.url} />
+          <Image alt={item.title} src={item.data} />
         ) : (
           <div
             className={styles['video-cover']}
             onClick={() => onPreview(item)}
           >
-            <Image alt={item.name} src={item.cover} preview={false} />
+            <div className={styles['video-placeholder']}>
+              <p>视频素材</p>
+            </div>
             <div className={styles['video-play-icon']}>▶</div>
           </div>
         )
@@ -41,7 +36,7 @@ const MaterialCard: FC<MaterialCardProps> = ({ item, onDelete, onPreview }) => {
         <DeleteOutlined key="delete" onClick={() => onDelete(item.id)} />
       ]}
     >
-      <Meta title={item.name} />
+      <Meta title={item.title} />
     </Card>
   )
 }

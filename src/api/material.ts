@@ -1,0 +1,40 @@
+import service from '@/utils/request'
+
+export interface Material {
+  id: number
+  title: string
+  type: 'image' | 'video'
+  data: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+interface GetMaterialsParams {
+  page?: number
+  pageSize?: number
+}
+
+interface GetMaterialsResponse {
+  total: number
+  list: Material[]
+  page: string
+  pageSize: string
+}
+
+export const getMaterials = (params: GetMaterialsParams) => {
+  return service.get<GetMaterialsResponse>('/materials', { params })
+}
+
+interface AddMaterialPayload {
+  title: string
+  data: string
+  type: 'image' | 'video'
+}
+
+export const addMaterial = (data: AddMaterialPayload) => {
+  return service.post<{ data: Material }>('/materials', data)
+}
+
+export const deleteMaterial = (id: number) => {
+  return service.delete(`/materials/${id}`)
+}
