@@ -13,7 +13,8 @@ import {
   Image as AntImage,
   Tag,
   Form,
-  Input as AntdInput
+  Input as AntdInput,
+  message
 } from 'antd'
 import type { RcFile, UploadProps } from 'antd/es/upload'
 import type { UploadFile } from 'antd/es/upload/interface'
@@ -324,10 +325,6 @@ function Material() {
     const uploadPromises = fileList.map(async (file: CustomUploadFile) => {
       if (!file.originFileObj) return
 
-      // Add a log to see the file's MIME type
-      console.log(
-        `Uploading file: ${file.name}, MIME type: ${file.originFileObj.type}`
-      )
       const fileType = getFileType(file.originFileObj as RcFile)
       let coverImage = ''
       if (fileType === 'video') {
@@ -346,12 +343,13 @@ function Material() {
 
     try {
       await Promise.all(uploadPromises)
+      message.success('素材上传成功！')
       setIsModalOpen(false)
       setFileList([])
-      fetchMaterials() // Refresh list after upload
+      fetchMaterials()
     } catch (error) {
       console.error('Failed to upload materials:', error)
-      // Optionally show an error message to the user
+      message.error('素材上传失败，请稍后重试。')
     }
   }
 
@@ -370,12 +368,14 @@ function Material() {
       const values = await editForm.validateFields()
       if (editingMaterial) {
         await updateMaterial(editingMaterial.id, { title: values.title })
+        message.success('素材更新成功！')
         setIsEditModalOpen(false)
         setEditingMaterial(null)
         fetchMaterials()
       }
     } catch (error) {
       console.error('Failed to update material:', error)
+      message.error('素材更新失败，请稍后重试。')
     }
   }
 
@@ -390,20 +390,14 @@ function Material() {
   }
 
   const handleDelete = async (id: number) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: '您确定要删除这个素材吗？',
-      okText: '确认',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await deleteMaterial(id)
-          fetchMaterials() // Refresh list after delete
-        } catch (error) {
-          console.error('Failed to delete material:', error)
-        }
-      }
-    })
+    try {
+      await deleteMaterial(id)
+      message.success('素材删除成功！')
+      fetchMaterials()
+    } catch (error) {
+      console.error('Failed to delete material:', error)
+      message.error('素材删除失败，请稍后重试。')
+    }
   }
 
   const uploadButton = (
