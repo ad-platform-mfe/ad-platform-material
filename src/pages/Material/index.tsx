@@ -26,7 +26,8 @@ import {
   addMaterial,
   deleteMaterial,
   updateMaterial,
-  type Material as MaterialType
+  type Material as MaterialType,
+  type AddMaterialPayload
 } from '@/api/material'
 
 const { Search } = Input
@@ -42,6 +43,54 @@ const getBase64 = (file: RcFile): Promise<string> =>
     reader.onload = () => resolve(reader.result as string)
     reader.onerror = (error) => reject(error)
   })
+
+const generateVideoThumbnail = (file: RcFile): Promise<string> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    video.src = URL.createObjectURL(file)
+    // 跳转到1秒
+    video.currentTime = 1
+
+    video.onloadeddata = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
+        const thumbnailUrl = canvas.toDataURL('image/jpeg')
+        // 释放资源
+        URL.revokeObjectURL(video.src)
+        resolve(thumbnailUrl)
+      } else {
+        URL.revokeObjectURL(video.src)
+        // 返回空字符串
+        resolve('')
+      }
+    }
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src)
+      // 返回空字符串
+      resolve('')
+    }
+  })
+}
+
+const getFileType = (file: RcFile): 'image' | 'video' => {
+  // 优先使用 MIME 类型
+  if (file.type && file.type.startsWith('image/')) {
+    return 'image'
+  } else if (file.type && file.type.startsWith('video/')) {
+    return 'video'
+  }
+  // 如果 MIME 类型不是视频，则检查文件扩展名
+  if ((file.name && file.name.endsWith('.jpg')) || file.name.endsWith('.png')) {
+    return 'image'
+  } else if (file.name && file.name.endsWith('.mp4')) {
+    return 'video'
+  }
+  throw new Error('不支持的文件类型')
+}
 
 function Material() {
   const [materials, setMaterials] = useState<MaterialType[]>([])
@@ -60,7 +109,9 @@ function Material() {
     | null
   >(null)
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
-  const [videoModalWidth, setVideoModalWidth] = useState<number | undefined>()
+  const [previewModalWidth, setPreviewModalWidth] = useState<
+    number | undefined
+  >()
   const [editForm] = Form.useForm()
 
   const fetchMaterials = async () => {
@@ -96,6 +147,14 @@ function Material() {
             width={80}
             height={45}
             src={data}
+            alt={record.title}
+            style={{ objectFit: 'cover', borderRadius: '4px' }}
+          />
+        ) : record.cover ? (
+          <AntImage
+            width={80}
+            height={45}
+            src={record.cover}
             alt={record.title}
             style={{ objectFit: 'cover', borderRadius: '4px' }}
           />
@@ -183,32 +242,41 @@ function Material() {
     )
   }
 
+  const calculateModalWidth = (
+    width: number,
+    height: number
+  ): number | undefined => {
+    if (height > width) {
+      const maxHeight = window.innerHeight * 0.8
+      const maxWidth = window.innerWidth * 0.8
+      let modalWidth = (width / height) * maxHeight
+      if (modalWidth > maxWidth) {
+        modalWidth = maxWidth
+      }
+      return modalWidth
+    }
+    return undefined
+  }
+
+  const handleImageLoad = (
+    e: React.SyntheticEvent<HTMLImageElement, Event>
+  ) => {
+    const img = e.currentTarget
+    const newWidth = calculateModalWidth(img.naturalWidth, img.naturalHeight)
+    setPreviewModalWidth(newWidth)
+  }
+
   const handleVideoLoad = (
     e: React.SyntheticEvent<HTMLVideoElement, Event>
   ) => {
     const video = e.currentTarget
     const { videoWidth, videoHeight } = video
-
-    // 仅为竖屏视频计算动态宽度
-    if (videoHeight > videoWidth) {
-      const maxHeight = window.innerHeight * 0.8
-      const maxWidth = window.innerWidth * 0.8
-
-      let modalWidth = videoWidth
-
-      if (videoHeight > maxHeight) {
-        modalWidth = (videoWidth / videoHeight) * maxHeight
-      }
-
-      if (modalWidth > maxWidth) {
-        modalWidth = maxWidth
-      }
-      setVideoModalWidth(modalWidth)
-    }
+    const newWidth = calculateModalWidth(videoWidth, videoHeight)
+    setPreviewModalWidth(newWidth)
   }
 
   const handleCardPreview = (item: MaterialType) => {
-    setVideoModalWidth(undefined) // 每次打开时重置宽度
+    setPreviewModalWidth(undefined) // 每次打开时重置宽度
     setPreviewingMaterial(item)
   }
 
@@ -224,6 +292,7 @@ function Material() {
       }
     }
 
+    setPreviewModalWidth(undefined)
     setPreviewingMaterial({
       title:
         file.name ||
@@ -255,13 +324,22 @@ function Material() {
     const uploadPromises = fileList.map(async (file: CustomUploadFile) => {
       if (!file.originFileObj) return
 
+      // Add a log to see the file's MIME type
+      console.log(
+        `Uploading file: ${file.name}, MIME type: ${file.originFileObj.type}`
+      )
+      const fileType = getFileType(file.originFileObj as RcFile)
+      let coverImage = ''
+      if (fileType === 'video') {
+        coverImage = await generateVideoThumbnail(file.originFileObj as RcFile)
+      }
+
       const base64 = await getBase64(file.originFileObj as RcFile)
-      const payload = {
+      const payload: AddMaterialPayload = {
         title: file.title,
         data: base64,
-        type: (file.originFileObj.type.startsWith('image/')
-          ? 'image'
-          : 'video') as 'image' | 'video'
+        type: fileType,
+        ...(coverImage && { cover: coverImage })
       }
       return addMaterial(payload)
     })
@@ -308,7 +386,7 @@ function Material() {
 
   const handlePreviewCancel = () => {
     setPreviewingMaterial(null)
-    setVideoModalWidth(undefined)
+    setPreviewModalWidth(undefined)
   }
 
   const handleDelete = async (id: number) => {
@@ -476,9 +554,7 @@ function Material() {
           footer={null}
           onCancel={handlePreviewCancel}
           destroyOnClose
-          width={
-            previewingMaterial.type === 'video' ? videoModalWidth : undefined
-          }
+          width={previewModalWidth}
         >
           {previewingMaterial.type === 'image' && (
             <img
@@ -486,6 +562,7 @@ function Material() {
               alt={previewingMaterial.title}
               style={{ width: '100%' }}
               src={previewingMaterial.data}
+              onLoad={handleImageLoad}
             />
           )}
           {previewingMaterial.type === 'video' && (

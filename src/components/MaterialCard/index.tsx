@@ -1,10 +1,12 @@
-import type { FC } from 'react'
-import { Card, Image } from 'antd'
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons'
+import { Card, Popconfirm } from 'antd'
+import {
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  PlayCircleOutlined
+} from '@ant-design/icons'
 import styles from './index.module.less'
 import { type Material as MaterialType } from '@/api/material'
-
-const { Meta } = Card
 
 interface MaterialCardProps {
   item: MaterialType
@@ -13,33 +15,49 @@ interface MaterialCardProps {
   onEdit: (item: MaterialType) => void
 }
 
-const MaterialCard: FC<MaterialCardProps> = (props) => {
-  const { item, onDelete, onPreview, onEdit } = props
-
+const MaterialCard: React.FC<MaterialCardProps> = ({
+  item,
+  onDelete,
+  onPreview,
+  onEdit
+}) => {
   return (
     <Card
+      hoverable
       cover={
-        item.type === 'image' ? (
-          <Image alt={item.title} src={item.data} />
+        item.type === 'video' && item.cover ? (
+          <img
+            alt={item.title}
+            src={item.cover}
+            className={styles.materialImage}
+          />
+        ) : item.type === 'image' ? (
+          <img
+            alt={item.title}
+            src={item.data}
+            className={styles.materialImage}
+          />
         ) : (
-          <div
-            className={styles['video-cover']}
-            onClick={() => onPreview(item)}
-          >
-            <div className={styles['video-placeholder']}>
-              <p>视频素材</p>
-            </div>
-            <div className={styles['video-play-icon']}>▶</div>
+          <div className={styles.videoPlaceholder}>
+            <PlayCircleOutlined style={{ fontSize: '48px', color: '#fff' }} />
           </div>
         )
       }
       actions={[
         <EyeOutlined key="preview" onClick={() => onPreview(item)} />,
         <EditOutlined key="edit" onClick={() => onEdit(item)} />,
-        <DeleteOutlined key="delete" onClick={() => onDelete(item.id)} />
+        <Popconfirm
+          title="确认删除"
+          description="您确定要删除这个素材吗？"
+          onConfirm={() => onDelete(item.id)}
+          okText="确认"
+          cancelText="取消"
+        >
+          <DeleteOutlined key="delete" />
+        </Popconfirm>
       ]}
     >
-      <Meta title={item.title} />
+      <Card.Meta title={item.title} />
     </Card>
   )
 }

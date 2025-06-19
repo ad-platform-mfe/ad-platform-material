@@ -5,8 +5,9 @@ export interface Material {
   title: string
   type: 'image' | 'video'
   data: string
-  createdAt?: string
-  updatedAt?: string
+  cover?: string
+  createdAt: string
+  updatedAt: string
 }
 
 interface GetMaterialsParams {
@@ -25,11 +26,10 @@ export const getMaterials = (params: GetMaterialsParams) => {
   return service.get<GetMaterialsResponse>('/materials', { params })
 }
 
-interface AddMaterialPayload {
-  title: string
-  data: string
-  type: 'image' | 'video'
-}
+export type AddMaterialPayload = Omit<
+  Material,
+  'id' | 'createdAt' | 'updatedAt'
+>
 
 export const addMaterial = (data: AddMaterialPayload) => {
   return service.post<{ data: Material }>('/materials', data)
