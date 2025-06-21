@@ -1,4 +1,11 @@
 import service from '@/utils/request'
+import type { AxiosResponse } from 'axios'
+
+export interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+}
 
 export interface Material {
   id: number
@@ -6,6 +13,8 @@ export interface Material {
   type: 'image' | 'video'
   data: string
   cover?: string
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'review'
+  reviewResult?: object
   createdAt: string
   updatedAt: string
 }
@@ -13,17 +22,18 @@ export interface Material {
 interface GetMaterialsParams {
   page?: number
   pageSize?: number
+  type?: 'image' | 'video'
 }
 
-interface GetMaterialsResponse {
+interface MaterialsData {
   total: number
   list: Material[]
-  page: string
-  pageSize: string
 }
 
-export const getMaterials = (params: GetMaterialsParams) => {
-  return service.get<GetMaterialsResponse>('/materials', { params })
+export const getMaterials = (
+  params: GetMaterialsParams
+): Promise<AxiosResponse<ApiResponse<MaterialsData>>> => {
+  return service.get('/materials', { params })
 }
 
 export type AddMaterialPayload = Omit<
@@ -32,7 +42,7 @@ export type AddMaterialPayload = Omit<
 >
 
 export const addMaterial = (data: AddMaterialPayload) => {
-  return service.post<{ data: Material }>('/materials', data)
+  return service.post<ApiResponse<Material>>('/materials', data)
 }
 
 export const updateMaterial = (id: number, data: { title: string }) => {
