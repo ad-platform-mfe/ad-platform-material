@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons'
 import styles from './index.module.less'
 import { type Material as MaterialType } from '@/api/material'
+import { getStatusTag } from '@/utils/review'
 
 interface MaterialCardProps {
   item: MaterialType
@@ -24,6 +25,7 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
   return (
     <Card
       hoverable
+      className={styles.materialCard}
       cover={
         item.type === 'video' && item.cover ? (
           <img
@@ -57,6 +59,7 @@ const MaterialCard: React.FC<MaterialCardProps> = ({
         </Popconfirm>
       ]}
     >
+      <div className={styles.statusTag}>{getStatusTag(item.reviewStatus)}</div>
       <Card.Meta title={item.title} />
     </Card>
   )

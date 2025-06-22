@@ -169,11 +169,11 @@ const AdReview: FC = () => {
   }
 
   const generateRejectionReason = (reviewResult?: ReviewResult) => {
-    if (!reviewResult || !reviewResult.details) {
+    if (!reviewResult) {
       return '无详细审核信息。'
     }
 
-    const { Label, SubLabel, Score, Suggestion } = reviewResult.details
+    const { Label, SubLabel, Score, Suggestion } = reviewResult
     const labelMap: Record<string, string> = {
       Polity: '政治类',
       Porn: '涉黄',
@@ -214,14 +214,15 @@ const AdReview: FC = () => {
     {
       title: '素材名称',
       dataIndex: 'title',
-      key: 'title'
+      key: 'title',
+      width: 280
     },
     {
       title: '提交时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 200,
-      render: (text) => new Date(text).toLocaleString()
+      width: 300,
+      render: (text: string) => new Date(text).toLocaleString()
     },
     {
       title: '审核状态',

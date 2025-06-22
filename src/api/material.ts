@@ -18,18 +18,12 @@ export interface Material {
   updatedAt: string
 }
 
-export interface ReviewDetails {
+export interface ReviewResult {
   Label: string
   SubLabel: string
   Score: number
   Suggestion: 'Block' | 'Pass' | 'Review'
-}
-
-export interface ReviewResult {
-  success: boolean
-  materialId: string
-  reviewStatus: 'pending' | 'approved' | 'rejected' | 'review' | 'reviewing'
-  details: ReviewDetails
+  [key: string]: unknown // 容纳其他未知字段
 }
 
 interface GetMaterialsParams {

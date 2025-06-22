@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, type FC } from 'react'
 import type { RadioChangeEvent } from 'antd'
 import {
   Button,
@@ -18,6 +18,7 @@ import {
 } from 'antd'
 import type { RcFile, UploadProps } from 'antd/es/upload'
 import type { UploadFile } from 'antd/es/upload/interface'
+import type { TableProps } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import MaterialCard from '@/components/MaterialCard'
 import styles from './index.module.less'
@@ -30,6 +31,8 @@ import {
   type Material as MaterialType,
   type AddMaterialPayload
 } from '@/api/material'
+import { getBase64, getFileType, generateVideoThumbnail } from '@/utils/file'
+import { getStatusTag, renderRejectionReason } from '@/utils/review'
 
 const { Search } = Input
 
@@ -37,63 +40,7 @@ interface CustomUploadFile extends UploadFile {
   title: string
 }
 
-const getBase64 = (file: RcFile): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.readAsDataURL(file)
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = (error) => reject(error)
-  })
-
-const generateVideoThumbnail = (file: RcFile): Promise<string> => {
-  return new Promise((resolve) => {
-    const video = document.createElement('video')
-    video.src = URL.createObjectURL(file)
-    // 跳转到1秒
-    video.currentTime = 1
-
-    video.onloadeddata = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)
-        const thumbnailUrl = canvas.toDataURL('image/jpeg')
-        // 释放资源
-        URL.revokeObjectURL(video.src)
-        resolve(thumbnailUrl)
-      } else {
-        URL.revokeObjectURL(video.src)
-        // 返回空字符串
-        resolve('')
-      }
-    }
-    video.onerror = () => {
-      URL.revokeObjectURL(video.src)
-      // 返回空字符串
-      resolve('')
-    }
-  })
-}
-
-const getFileType = (file: RcFile): 'image' | 'video' => {
-  // 优先使用 MIME 类型
-  if (file.type && file.type.startsWith('image/')) {
-    return 'image'
-  } else if (file.type && file.type.startsWith('video/')) {
-    return 'video'
-  }
-  // 如果 MIME 类型不是视频，则检查文件扩展名
-  if ((file.name && file.name.endsWith('.jpg')) || file.name.endsWith('.png')) {
-    return 'image'
-  } else if (file.name && file.name.endsWith('.mp4')) {
-    return 'video'
-  }
-  throw new Error('不支持的文件类型')
-}
-
-function Material() {
+const MaterialPage: FC = () => {
   const [materials, setMaterials] = useState<MaterialType[]>([])
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -113,16 +60,22 @@ function Material() {
   const [previewModalWidth, setPreviewModalWidth] = useState<
     number | undefined
   >()
-  const [editForm] = Form.useForm()
+  const [loading, setLoading] = useState(false)
+
+  const [form] = Form.useForm()
 
   const fetchMaterials = async () => {
+    setLoading(true)
     try {
       const res = await getMaterials({})
-      if (res.data && res.data.list) {
+      if (res && res.data && Array.isArray(res.data.list)) {
         setMaterials(res.data.list)
       }
     } catch (error) {
-      console.error('Failed to fetch materials:', error)
+      console.error('获取素材列表失败:', error)
+      message.error('获取素材列表失败')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -137,78 +90,78 @@ function Material() {
     500: 1
   }
 
-  const columns = [
+  const columns: TableProps<MaterialType>['columns'] = [
     {
-      title: '缩略图',
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80
+    },
+    {
+      title: '素材预览',
       dataIndex: 'data',
-      key: 'url',
+      key: 'preview',
+      width: 150,
       render: (data: string, record: MaterialType) =>
         record.type === 'image' ? (
-          <AntImage
-            width={80}
-            height={45}
-            src={data}
-            alt={record.title}
-            style={{ objectFit: 'cover', borderRadius: '4px' }}
-          />
-        ) : record.cover ? (
-          <AntImage
-            width={80}
-            height={45}
-            src={record.cover}
-            alt={record.title}
-            style={{ objectFit: 'cover', borderRadius: '4px' }}
-          />
+          <AntImage width={100} src={data} alt={record.title} />
         ) : (
-          <div
-            style={{
-              width: 80,
-              height: 45,
-              background: '#e8e8e8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '4px'
-            }}
-          >
-            视频
-          </div>
+          <video
+            width="100"
+            poster={record.cover}
+            controls
+            src={data}
+            className={styles.videoPlayer}
+          />
         )
     },
     {
       title: '素材名称',
       dataIndex: 'title',
-      key: 'name'
+      key: 'title',
+      width: 280
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
+      width: 100,
       render: (type: 'image' | 'video') => (
-        <Tag color={type === 'image' ? 'green' : 'blue'}>
-          {type === 'image' ? '图片' : '视频'}
+        <Tag color={type === 'image' ? 'blue' : 'green'}>
+          {type.toUpperCase()}
         </Tag>
       )
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
-      key: 'createdAt'
+      key: 'createdAt',
+      width: 300,
+      render: (text: string) => new Date(text).toLocaleString()
+    },
+    {
+      title: '审核状态',
+      dataIndex: 'reviewStatus',
+      key: 'reviewStatus',
+      width: 120,
+      render: getStatusTag
+    },
+    {
+      title: '审核详情',
+      dataIndex: 'reviewResult',
+      key: 'reviewDetail',
+      width: 250,
+      render: (reviewResult, record) =>
+        renderRejectionReason(reviewResult, record)
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: MaterialType) => (
+      width: 150,
+      render: (_, record: MaterialType) => (
         <Space size="middle">
-          <Button type="link" onClick={() => handleCardPreview(record)}>
-            预览
-          </Button>
-          <Button type="link" onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button type="link" danger onClick={() => handleDelete(record.id)}>
-            删除
-          </Button>
+          <a onClick={() => handleEdit(record)}>编辑</a>
+          <a onClick={() => handleDelete(record.id)}>删除</a>
         </Space>
       )
     }
@@ -281,29 +234,6 @@ function Material() {
     setPreviewingMaterial(item)
   }
 
-  const handlePreview = async (file: UploadFile) => {
-    let previewUrl = file.url
-
-    if (!previewUrl && file.originFileObj) {
-      try {
-        previewUrl = await getBase64(file.originFileObj as RcFile)
-      } catch (e) {
-        console.error('Failed to get base64 for preview:', e)
-        previewUrl = '' // or some fallback
-      }
-    }
-
-    setPreviewModalWidth(undefined)
-    setPreviewingMaterial({
-      title:
-        file.name ||
-        previewUrl?.substring(previewUrl.lastIndexOf('/') + 1) ||
-        '预览',
-      data: previewUrl || '',
-      type: file.type?.startsWith('video/') ? 'video' : 'image'
-    })
-  }
-
   const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
     const nextFileList = newFileList.map((file: UploadFile) => {
       const currentFile = fileList.find(
@@ -322,50 +252,72 @@ function Material() {
   }
 
   const handleOk = async () => {
-    const uploadPromises = fileList.map(async (file: CustomUploadFile) => {
-      if (!file.originFileObj) return
-
-      const fileType = getFileType(file.originFileObj as RcFile)
-      let coverImage = ''
-      if (fileType === 'video') {
-        coverImage = await generateVideoThumbnail(file.originFileObj as RcFile)
-      }
-
-      const base64 = await getBase64(file.originFileObj as RcFile)
-      const payload: AddMaterialPayload = {
-        title: file.title,
-        data: base64,
-        type: fileType,
-        ...(coverImage && { cover: coverImage })
-      }
-      return addMaterial(payload)
-    })
-
     try {
-      await Promise.all(uploadPromises)
-      message.success('素材上传成功！')
+      const values = await form.validateFields()
+      const { title } = values
+
+      if (editingMaterial) {
+        setLoading(true)
+        await updateMaterial(editingMaterial.id, { title })
+        message.success('素材更新成功')
+      } else {
+        if (fileList.length === 0 || !fileList[0].originFileObj) {
+          message.error('请先上传文件')
+          return
+        }
+        setLoading(true)
+        const uploadPromises = fileList.map(async (file: CustomUploadFile) => {
+          if (!file.originFileObj) return
+
+          const fileType = getFileType(file.originFileObj as RcFile)
+          let coverImage = ''
+          if (fileType === 'video') {
+            coverImage = await generateVideoThumbnail(
+              file.originFileObj as RcFile
+            )
+          }
+
+          const base64 = await getBase64(file.originFileObj as RcFile)
+          const payload: AddMaterialPayload = {
+            title: file.title,
+            data: base64,
+            type: fileType,
+            reviewStatus: 'pending',
+            ...(coverImage && { cover: coverImage })
+          }
+          return addMaterial(payload)
+        })
+        await Promise.all(uploadPromises)
+        message.success('素材添加成功')
+      }
       setIsModalOpen(false)
+      setEditingMaterial(null)
       setFileList([])
+      form.resetFields()
       fetchMaterials()
-    } catch (error) {
-      console.error('Failed to upload materials:', error)
-      message.error('素材上传失败，请稍后重试。')
+    } catch (info) {
+      console.log('Validate Failed:', info)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleCancel = () => {
     setIsModalOpen(false)
+    setEditingMaterial(null)
+    setFileList([])
+    form.resetFields()
   }
 
   const handleEdit = (record: MaterialType) => {
     setEditingMaterial(record)
-    editForm.setFieldsValue({ title: record.title })
+    form.setFieldsValue({ title: record.title })
     setIsEditModalOpen(true)
   }
 
   const handleUpdate = async () => {
     try {
-      const values = await editForm.validateFields()
+      const values = await form.validateFields()
       if (editingMaterial) {
         await updateMaterial(editingMaterial.id, { title: values.title })
         message.success('素材更新成功！')
@@ -421,17 +373,18 @@ function Material() {
       return (
         <Masonry
           breakpointCols={breakpointColumnsObj}
-          className={styles['my-masonry-grid']}
-          columnClassName={styles['my-masonry-grid_column']}
+          className={styles.masonryGrid}
+          columnClassName={styles.masonryGrid_column}
         >
-          {filteredMaterials.map((item: MaterialType) => (
-            <MaterialCard
-              key={item.id}
-              item={item}
-              onDelete={handleDelete}
-              onPreview={handleCardPreview}
-              onEdit={handleEdit}
-            />
+          {filteredMaterials.map((item) => (
+            <div key={item.id} className={styles.masonryItem}>
+              <MaterialCard
+                item={item}
+                onDelete={() => handleDelete(item.id)}
+                onEdit={() => handleEdit(item)}
+                onPreview={() => handleCardPreview(item)}
+              />
+            </div>
           ))}
         </Masonry>
       )
@@ -478,13 +431,13 @@ function Material() {
         open={isModalOpen}
         onOk={handleOk}
         onCancel={handleCancel}
+        confirmLoading={loading}
       >
         <Upload
           accept="image/*,video/*"
           beforeUpload={() => false} // Prevent auto upload
           listType="picture-card"
           fileList={fileList}
-          onPreview={handlePreview}
           onChange={handleChange}
         >
           {fileList.length >= 8 ? null : uploadButton}
@@ -530,7 +483,7 @@ function Material() {
         onOk={handleUpdate}
         onCancel={handleEditCancel}
       >
-        <Form form={editForm} layout="vertical" name="form_in_modal">
+        <Form form={form} layout="vertical" name="form_in_modal">
           <Form.Item
             name="title"
             label="素材标题"
@@ -576,4 +529,4 @@ function Material() {
   )
 }
 
-export default Material
+export default MaterialPage
