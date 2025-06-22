@@ -27,6 +27,9 @@ service.interceptors.request.use((config) => {
 
 service.interceptors.response.use(
   (response) => {
+    if (response.status === 202) {
+      return response.data
+    }
     const { data } = response
     if (data.code !== 0) {
       console.error('API Error:', data.msg)

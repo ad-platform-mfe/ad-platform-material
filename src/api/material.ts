@@ -1,5 +1,4 @@
 import service from '@/utils/request'
-import type { AxiosResponse } from 'axios'
 
 export interface ApiResponse<T> {
   code: number
@@ -13,10 +12,24 @@ export interface Material {
   type: 'image' | 'video'
   data: string
   cover?: string
-  reviewStatus: 'pending' | 'approved' | 'rejected' | 'review'
-  reviewResult?: object
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'review' | 'reviewing'
+  reviewResult?: ReviewResult
   createdAt: string
   updatedAt: string
+}
+
+export interface ReviewDetails {
+  Label: string
+  SubLabel: string
+  Score: number
+  Suggestion: 'Block' | 'Pass' | 'Review'
+}
+
+export interface ReviewResult {
+  success: boolean
+  materialId: string
+  reviewStatus: 'pending' | 'approved' | 'rejected' | 'review' | 'reviewing'
+  details: ReviewDetails
 }
 
 interface GetMaterialsParams {
@@ -25,14 +38,14 @@ interface GetMaterialsParams {
   type?: 'image' | 'video'
 }
 
-interface MaterialsData {
+export interface MaterialsData {
   total: number
   list: Material[]
 }
 
 export const getMaterials = (
   params: GetMaterialsParams
-): Promise<AxiosResponse<ApiResponse<MaterialsData>>> => {
+): Promise<ApiResponse<MaterialsData>> => {
   return service.get('/materials', { params })
 }
 
