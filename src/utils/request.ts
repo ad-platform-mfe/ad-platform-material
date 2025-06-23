@@ -31,9 +31,9 @@ service.interceptors.response.use(
       return response.data
     }
     const { data } = response
-    if (data.code !== 0) {
-      console.error('API Error:', data.msg)
-      return Promise.reject(new Error(data.msg || 'Error'))
+    if (data.code !== undefined && data.code !== 0) {
+      console.error('API Error:', data.msg || data.message)
+      return Promise.reject(new Error(data.msg || data.message || 'Error'))
     }
     return data
   },

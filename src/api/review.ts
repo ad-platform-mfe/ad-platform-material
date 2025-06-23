@@ -5,7 +5,7 @@ import service from '@/utils/request'
  * @param id 素材 ID
  */
 export function triggerReview(id: number): Promise<{ message: string }> {
-  return service.post(`/reviews/trigger/${id}`)
+  return service.post(`/reviews/machine/${id}`)
 }
 
 /**

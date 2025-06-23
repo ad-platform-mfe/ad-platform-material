@@ -21,6 +21,7 @@ import type { UploadFile } from 'antd/es/upload/interface'
 import type { TableProps } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import MaterialCard from '@/components/MaterialCard'
+import PhonePreview from '@/components/PhonePreview'
 import styles from './index.module.less'
 import Masonry from 'react-masonry-css'
 import {
@@ -50,12 +51,8 @@ const MaterialPage: FC = () => {
     null
   )
   const [fileList, setFileList] = useState<CustomUploadFile[]>([])
-  const [previewingMaterial, setPreviewingMaterial] = useState<
-    | (Omit<MaterialType, 'id' | 'createdAt' | 'updatedAt'> & {
-        id?: number
-      })
-    | null
-  >(null)
+  const [previewingMaterial, setPreviewingMaterial] =
+    useState<MaterialType | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
   const [previewModalWidth, setPreviewModalWidth] = useState<
     number | undefined
@@ -217,15 +214,6 @@ const MaterialPage: FC = () => {
   ) => {
     const img = e.currentTarget
     const newWidth = calculateModalWidth(img.naturalWidth, img.naturalHeight)
-    setPreviewModalWidth(newWidth)
-  }
-
-  const handleVideoLoad = (
-    e: React.SyntheticEvent<HTMLVideoElement, Event>
-  ) => {
-    const video = e.currentTarget
-    const { videoWidth, videoHeight } = video
-    const newWidth = calculateModalWidth(videoWidth, videoHeight)
     setPreviewModalWidth(newWidth)
   }
 
@@ -494,7 +482,13 @@ const MaterialPage: FC = () => {
         </Form>
       </Modal>
 
-      {previewingMaterial && (
+      {previewingMaterial?.type === 'video' && (
+        <PhonePreview
+          material={previewingMaterial}
+          onClose={handlePreviewCancel}
+        />
+      )}
+      {previewingMaterial?.type === 'image' && (
         <Modal
           open={!!previewingMaterial}
           title={previewingMaterial.title}
@@ -503,26 +497,13 @@ const MaterialPage: FC = () => {
           destroyOnClose
           width={previewModalWidth}
         >
-          {previewingMaterial.type === 'image' && (
-            <img
-              key={previewingMaterial.data}
-              alt={previewingMaterial.title}
-              style={{ width: '100%' }}
-              src={previewingMaterial.data}
-              onLoad={handleImageLoad}
-            />
-          )}
-          {previewingMaterial.type === 'video' && (
-            <video
-              key={previewingMaterial.data}
-              controls
-              autoPlay
-              muted
-              style={{ width: '100%' }}
-              src={previewingMaterial.data}
-              onLoadedMetadata={handleVideoLoad}
-            />
-          )}
+          <img
+            key={previewingMaterial.data}
+            alt={previewingMaterial.title}
+            style={{ width: '100%' }}
+            src={previewingMaterial.data}
+            onLoad={handleImageLoad}
+          />
         </Modal>
       )}
     </div>
