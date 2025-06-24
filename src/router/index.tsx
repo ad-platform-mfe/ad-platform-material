@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import BasicLayout from '@/layouts/BasicLayout'
 import Material from '@/pages/Material'
 import AdReview from '@/pages/AdReview'
+import AdGroupPage from '@/pages/AdGroup'
 
 const router = createBrowserRouter(
   [
@@ -16,6 +17,10 @@ const router = createBrowserRouter(
         {
           path: '/ad-review',
           element: <AdReview />
+        },
+        {
+          path: '/ad-group',
+          element: <AdGroupPage />
         },
         {
           path: '*',
