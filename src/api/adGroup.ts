@@ -14,16 +14,14 @@ export interface AdGroup {
   name: string
   mainCategory: '互动广告' | '创意视频'
   tags: string[]
-  materials?: Material[]
+  Materials?: Material[]
   createdAt: string
   updatedAt: string
 }
 
 export interface AdGroupListData {
-  total: number
-  list: AdGroup[]
-  page: number
-  pageSize: number
+  count: number
+  rows: AdGroup[]
 }
 
 interface AdGroupListParams {

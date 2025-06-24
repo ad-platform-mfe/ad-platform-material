@@ -55,7 +55,7 @@ const AdGroupPage: React.FC = () => {
     try {
       const res = await getAdGroups({ page: 1, pageSize: 100 })
       if (res.code === 0) {
-        setAdGroups(res.data.list)
+        setAdGroups(res.data.rows)
       }
     } catch (error) {
       console.error('获取广告组列表失败:', error)
@@ -105,7 +105,7 @@ const AdGroupPage: React.FC = () => {
       mainCategory: record.mainCategory,
       tags: record.tags
     })
-    setSelectedMaterialIds(record.materials?.map((m) => m.id) || [])
+    setSelectedMaterialIds(record.Materials?.map((m) => m.id) || [])
     setIsModalVisible(true)
   }
 
@@ -121,11 +121,18 @@ const AdGroupPage: React.FC = () => {
   }
 
   const handleMaterialSelect = () => {
+    setIsModalVisible(false)
     setIsMaterialModalVisible(true)
   }
 
   const handleMaterialModalOk = () => {
     setIsMaterialModalVisible(false)
+    setIsModalVisible(true)
+  }
+
+  const handleMaterialModalCancel = () => {
+    setIsMaterialModalVisible(false)
+    setIsModalVisible(true)
   }
 
   const columns = [
@@ -143,7 +150,7 @@ const AdGroupPage: React.FC = () => {
     {
       title: '包含素材数',
       key: 'materialsCount',
-      render: (_text: unknown, record: AdGroup) => record.materials?.length || 0
+      render: (_text: unknown, record: AdGroup) => record.Materials?.length || 0
     },
     {
       title: '操作',
@@ -244,7 +251,7 @@ const AdGroupPage: React.FC = () => {
         title="选择素材"
         open={isMaterialModalVisible}
         onOk={handleMaterialModalOk}
-        onCancel={() => setIsMaterialModalVisible(false)}
+        onCancel={handleMaterialModalCancel}
         width={800}
       >
         <Table
